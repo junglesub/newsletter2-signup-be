@@ -12,20 +12,15 @@ var app = express();
 app.use(cors()); // CORS 미들웨어 사용
 
 // Database connection setup
-const db = mysql.createConnection({
+const pool = mysql.createPool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-});
-
-db.connect((err) => {
-  if (err) {
-    console.error("Error connecting to database:", err);
-    return;
-  }
-  console.log("Connected to database");
+  waitForConnections: true,
+  connectionLimit: 10, // 동시에 유지할 수 있는 최대 연결 수
+  queueLimit: 0, // 연결 대기열 제한 (0은 무제한)
 });
 
 // Middleware for API Key Authentication
@@ -56,7 +51,7 @@ app.post("/signup", authenticateKey, (req, res) => {
   }
 
   const query = "INSERT INTO signup (email) VALUES (?)";
-  db.query(query, [email], (err, result) => {
+  pool.query(query, [email], (err, result) => {
     if (err) {
       console.error("Error inserting email:", err);
       return res.status(500).send("Error signing up");
@@ -68,7 +63,7 @@ app.post("/signup", authenticateKey, (req, res) => {
 // Count endpoint
 app.get("/count", authenticateKey, (req, res) => {
   const query = "SELECT COUNT(*) AS count FROM signup";
-  db.query(query, (err, results) => {
+  pool.query(query, (err, results) => {
     if (err) {
       console.error("Error fetching count:", err);
       return res.status(500).send("Error fetching count");
